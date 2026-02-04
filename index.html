@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>NiePrzepłacaj</title>
+<!-- Import czcionki Inter z Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+body { 
+    font-family: 'Inter', Arial, sans-serif; 
+    background:#f8f7f7; 
+    padding:30px; 
+    color:#130086;
+}
+h1,h2 { color:#130086; }
+.hidden { display:none; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:15px; }
+.card { 
+    background:white; 
+    padding:15px; 
+    border-radius:12px; 
+    text-align:center; 
+    cursor:pointer; 
+    box-shadow:0 6px 15px rgba(0,0,0,.08);
+    transition: transform 0.2s;
+}
+.card:hover { 
+    background:#e0e0ff; 
+    transform: translateY(-3px);
+}
+select,input,button { 
+    width:100%; 
+    padding:12px; 
+    margin-top:10px; 
+    border-radius:8px; 
+    border:1px solid #ccc; 
+    font-family: 'Inter', Arial, sans-serif;
+}
+button { 
+    background:#130086; 
+    color:white; 
+    border:none; 
+    cursor:pointer; 
+    font-weight:600;
+}
+.result { margin-top:20px; }
+.sub { background:#e0e0ff; padding:10px; border-radius:8px; margin-top:10px; }
+</style>
+</head>
+<body>
+
+<h1>NiePrzepłacaj</h1>
+<p>Wybierz kategorię produktów, aby zobaczyć ile możesz zaoszczędzić!</p>
+
+<div id="categories" class="grid"></div>
+
+<div id="app" class="hidden">
+  <h2 id="catTitle"></h2>
+  <input id="search" placeholder="Szukaj produktu...">
+  <select id="product"></select>
+  <input id="qty" type="number" placeholder="Ile razy w miesiącu kupujesz?">
+  <button onclick="calc()">Policz oszczędności</button>
+  <div class="result" id="result"></div>
+</div>
+
+<script>
+// --- BAZA PRODUKTÓW ---
+const data = {
+"Napoje": {
+  icon:"🥤",
+  products:{
+    "Coca-Cola 0.5L": {price:3, subs:{"Freeway Cola 0.5L":2}},
+    "Pepsi 0.5L": {price:3, subs:{"Hoop Cola 0.5L":2.2}},
+    "Fanta 0.5L": {price:3, subs:{"Freeway Orange 0.5L":2}},
+    "Sprite 0.5L": {price:3, subs:{"Hoop Lemon 0.5L":2.3}},
+    "Red Bull 250ml": {price:6, subs:{"Tiger 250ml":3.5,"Black 250ml":3}},
+    "Monster 500ml": {price:7, subs:{"Tiger Energy 500ml":4.5}},
+    "Żywiec Zdrój 0.5L": {price:2.5, subs:{"Woda Biedronka 0.5L":1.5}},
+    "Tymbark Jabłko 0.5L": {price:3.5, subs:{"Riviva Jabłko 0.5L":2.5}},
+    "Cappy Pomarańcza 0.5L": {price:4, subs:{"Hortex Pomarańcza 0.5L":3}},
+    "Nestea 0.5L": {price:4, subs:{"Freeway Ice Tea 0.5L":2.8}}
+  }
+},
+"Jedzenie": {
+  icon:"🍫",
+  products:{
+    "Kinder Bueno": {price:4.5, subs:{"Prince Polo":2.5}},
+    "Miu Miu": {price:5, subs:{"Jogobella":3}},
+    "Haribo Żelki 100g": {price:3.5, subs:{"Żelki Lidl 100g":2}},
+    "Baton Mars": {price:3.5, subs:{"Baton Lidl":1.9}},
+    "Baton Snickers": {price:3.5, subs:{"Baton Carrefour":1.8}},
+    "Milky Way": {price:3.5, subs:{"Baton Tesco":2}},
+    "Jogurt pitny Danone": {price:3, subs:{"Jogurt pitny Biedronka":2}},
+    "Mleko smakowe Miu Miu 250ml": {price:3, subs:{"Mleko smakowe Biedronka 250ml":2}},
+    "Czekolada Milka 100g": {price:5, subs:{"Czekolada Lidl 100g":3}},
+    "Czekolada Wedel 100g": {price:5, subs:{"Czekolada Aldi 100g":3}}
+  }
+}
+};
+
+// --- UI RENDER ---
+const catDiv = document.getElementById("categories");
+const app = document.getElementById("app");
+const prodSel = document.getElementById("product");
+const search = document.getElementById("search");
+let currentCat;
+
+for(let c in data){
+  catDiv.innerHTML += `<div class="card" onclick="openCat('${c}')">${data[c].icon}<br>${c}</div>`;
+}
+
+function openCat(c){
+  currentCat = c;
+  app.classList.remove("hidden");
+  document.getElementById("catTitle").innerText = c;
+  loadProducts();
+}
+
+function loadProducts(){
+  prodSel.innerHTML = "";
+  for(let p in data[currentCat].products){
+    prodSel.innerHTML += `<option>${p}</option>`;
+  }
+}
+
+search.oninput = ()=>{
+  prodSel.innerHTML = "";
+  for(let p in data[currentCat].products){
+    if(p.toLowerCase().includes(search.value.toLowerCase()))
+      prodSel.innerHTML += `<option>${p}</option>`;
+  }
+};
+
+function calc(){
+  const q = parseFloat(document.getElementById("qty").value);
+  if(!q || q <=0){ alert("Podaj poprawną ilość"); return; }
+  const p = prodSel.value;
+  const base = data[currentCat].products[p];
+  let html = `<b>Miesięcznie wydajesz:</b> ${(base.price*q).toFixed(2)} zł`;
+  for(let s in base.subs){
+    const save = (base.price - base.subs[s])*q;
+    html += `<div class="sub">${s}<br>Miesięcznie: ${save.toFixed(2)} zł<br>Rocznie: <b>${(save*12).toFixed(2)} zł</b></div>`;
+  }
+  document.getElementById("result").innerHTML = html;
+}
+</script>
+
+</body>
+</html>
